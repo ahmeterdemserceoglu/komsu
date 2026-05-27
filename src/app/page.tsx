@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense, useCallback } from "react";
 import { useStore, Listing, FeedPost } from "@/lib/store";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -18,11 +18,18 @@ import ListingTypeFilter from "@/components/listing/ListingTypeFilter";
 function SearchParamsHandler({
   listings,
   setSelectedListing,
+  setChatOpen,
+  currentUser,
+  onOpenLoginForChat,
 }: {
   listings: Listing[];
   setSelectedListing: (listing: Listing | null) => void;
+  setChatOpen: (open: boolean) => void;
+  currentUser: any;
+  onOpenLoginForChat: () => void;
 }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   
   useEffect(() => {
     const openListingId = searchParams.get("openListing");
@@ -33,6 +40,24 @@ function SearchParamsHandler({
       }
     }
   }, [searchParams, listings, setSelectedListing]);
+
+  // Handle openChat query parameter
+  useEffect(() => {
+    const shouldOpenChat = searchParams.get("openChat");
+    if (shouldOpenChat === "true") {
+      // Clean up the URL first
+      const url = new URL(window.location.href);
+      url.searchParams.delete("openChat");
+      router.replace(url.pathname + url.search, { scroll: false });
+      
+      // Then open chat or show login modal
+      if (currentUser) {
+        setChatOpen(true);
+      } else {
+        onOpenLoginForChat();
+      }
+    }
+  }, [searchParams, setChatOpen, currentUser, router, onOpenLoginForChat]);
 
   return null;
 }
@@ -65,6 +90,12 @@ export default function HomePage() {
   const [newPostContent, setNewPostContent] = useState("");
   const [newPostType, setNewPostType] = useState<"discussion" | "announcement">("discussion");
   const [postSuccess, setPostSuccess] = useState(false);
+
+  // Stable callback for opening login modal for chat
+  const handleOpenLoginForChat = useCallback(() => {
+    setLoginActionMessage("Mesajlarınızı görmek için giriş yapmalısınız.");
+    setIsLoginModalOpen(true);
+  }, []);
 
   useEffect(() => {
     setIsClient(true);
@@ -470,7 +501,13 @@ export default function HomePage() {
 
       {/* DRAWERS & MODALS */}
       <Suspense fallback={null}>
-        <SearchParamsHandler listings={listings} setSelectedListing={setSelectedListing} />
+        <SearchParamsHandler 
+          listings={listings} 
+          setSelectedListing={setSelectedListing} 
+          setChatOpen={setChatOpen}
+          currentUser={currentUser}
+          onOpenLoginForChat={handleOpenLoginForChat}
+        />
       </Suspense>
 
       <ListingDetailDrawer
