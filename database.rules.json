@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "conversations": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "user_conversations": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "user_status": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "typing_states": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

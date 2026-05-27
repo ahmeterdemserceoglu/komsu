@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f8f9fa;
+  --foreground: #1e293b;
+  
+  --brand-primary: #091a35;
+  --brand-secondary: #f58220;
+  --brand-tertiary: #4f46e5;
+  --brand-dark: #050e1d;
+  
+  --border-color: #e2e8f0;
+  --card-bg: #ffffff;
+}
+
+.dark {
+  --background: #0b1329;
+  --foreground: #f1f5f9;
+  
+  --brand-primary: #0f1c3f;
+  --brand-secondary: #f58220;
+  --brand-tertiary: #6366f1;
+  --brand-dark: #050a16;
+  
+  --border-color: #1e293b;
+  --card-bg: #111a36;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-tertiary: var(--brand-tertiary);
+  --color-brand-dark: var(--brand-dark);
+  --color-border-custom: var(--border-color);
+  --color-card-bg: var(--card-bg);
+  
+  --font-display: var(--font-sans), sans-serif;
+  --font-sans: var(--font-sans), sans-serif;
+  
+  --animate-fade-in: fade-in 0.3s ease forwards;
+  --animate-slide-up: slide-up 0.4s ease-out forwards;
+  --animate-slide-in-right: slide-in-right 0.3s cubic-bezier(0, 0.55, 0.45, 1) forwards;
+  
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  overflow-x: hidden;
+}
+
+/* Beautiful custom card styles */
+.classic-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.classic-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  transform: translateY(-2px);
+}
+
+.dark .classic-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.dark .classic-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-secondary);
+}
+
+/* Smooth page transitions */
+main {
+  animation: fade-in 0.3s ease forwards;
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--brand-secondary);
+  color: #ffffff;
+}
+
+/* Disable text selection globally except inside text editing elements */
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+input, textarea, [contenteditable="true"], input *, textarea * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Fix all gray/muted text colors in dark mode to make them white/light grey */
+.dark {
+  .dark\:text-slate-300,
+  .dark\:text-slate-350,
+  .dark\:text-slate-400,
+  .dark\:text-slate-450,
+  .dark\:text-slate-500,
+  .dark\:text-slate-550,
+  .dark\:text-slate-600 {
+    color: #e2e8f0 !important; /* slate-200, highly readable off-white */
+  }
+
+  .dark\:text-slate-100,
+  .dark\:text-slate-200,
+  .dark\:text-white {
+    color: #ffffff !important; /* Pure white for headings and high-emphasis texts */
+  }
+
+  /* Fallback to make sure any gray elements inside dark containers get elevated contrast */
+  .text-slate-400,
+  .text-slate-500,
+  .text-slate-600 {
+    color: #e2e8f0 !important;
+  }
+}

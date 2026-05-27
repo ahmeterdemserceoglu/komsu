@@ -1,0 +1,70 @@
+# PAYLAŞIM VE YARDIMLAŞMA PLATFORMU - GELİŞTİRİCİ KURALLARI (.cursorrules)
+
+Bu dosya, projede yapılacak geliştirmelerin mimari standartlarını, güvenlik seviyesini ve tasarım kalitesini en üst düzeyde tutmak amacıyla hazırlanmıştır.
+
+---
+
+## 1. GENEL TEKNOLOJİ YIĞINI VE STANDARTLAR
+- **Çekirdek:** HTML5 (semantik yapı) ve TypeScript/JavaScript.
+- **Framework:** Next.js (App Router), React 19.
+- **Stil Yönetimi:** Tailwind CSS (modern, özelleştirilmiş grid yapısı ve degrade arka planlar).
+- **Animasyon:** Framer Motion (aksiyonlarda spring akıcılığı, staggered listeler).
+- **Veritabanı & Auth:** Firebase Auth (Email/Şifre/Telefon) & Firestore & Realtime Database.
+- **İkon Tasarımı:** Emojiler KESİNLİKLE yasaktır. Tamamen modern vektörel kütüphaneler (`lucide-react`) kullanılmalıdır.
+
+---
+
+## 2. GÖRSEL SANAT VE FRONTEND KURALLARI (Frontend Artistry)
+Sıradan ve klişe "AI şablonları" kesinlikle kabul edilmez. Premium, özgün ve akıcı bir deneyim hedeflenmelidir:
+
+### A. Tipografi ve Yerleşim
+- Varsayılan tarayıcı fontları yerine modern, şık fontlar (örn. `Plus Jakarta Sans`, `Inter`, `Cabinet Grotesque`) tercih edilmelidir.
+- Düzen simetrik ve sıkıcı kutular yerine; dinamik grid-breaking yapılar, asimetrik boşluklar ve katmanlı cam tasarımları (`backdrop-blur`) içermelidir.
+
+### B. Degradeler ve Mikro-Etkileşimler
+- Düz gri arka planlar veya parlak neon mor geçişler yerine; HSL uyumlu pastel, derin koyu lacivert tonları (`#091a35`), saten maskelemeler ve ince gren (noise) efektleri kullanılmalıdır.
+- Butonlara hover yapıldığında hafifçe büyüme (`hover:scale-[1.01]`), spring yay sönümlemeleri (`type: "spring", stiffness: 350`) eklenmelidir.
+
+### C. Profil ve İlan Simgeleri
+- Kullanıcı profillerinde emoji avatar seçimi yapılamaz. İsim baş harflerinden türetilen dinamik degrade balonları (`bg-gradient-to-tr from-orange-400 to-amber-500`) kullanılmalıdır.
+- İlanlarda Lucide React'in ince çizgili ikonları (`Handshake`, `Gift`, `Tag`) şık bir arka planla sunulmalıdır.
+
+### D. Profil Düzenleme Sistemi
+- Profil düzenleme modal'ı glass morphism (`backdrop-blur-xl`) ile tasarlanmalıdır.
+- Form alanları degrade border'lar ve subtle shadow'lar ile vurgulanmalıdır.
+- Kaydetme işlemi sırasında loading spinner ve success animation kullanılmalıdır.
+- Profil fotoğrafı yerine, kullanıcı adının baş harflerinden oluşan dinamik avatar kullanılmalıdır.
+
+---
+
+## 3. GÜVENLİK VE GÜÇLÜ ARKA PLAN MİMARİSİ (Backend Fortress)
+Veriler ve işlemler sıfır tolerans (Zero-Trust) prensibiyle işlenmeli ve korunmalıdır:
+
+### A. Girdi Doğrulama ve Koruma
+- Tüm girdiler hem istemci hem de sunucu/veritabanı düzeyinde Zod veya benzeri şemalar ile sıkı bir şekilde doğrulanmalıdır.
+- SQL enjeksiyonu ve parametre kirliliği saldırılarını engellemek adına sorgular parametrik tutulmalı, kontrolsüz string birleştirmelerinden kaçınılmalıdır.
+- Profil düzenleme işlemlerinde kullanıcı sadece kendi verilerini güncelleyebilmelidir (ownership check).
+
+### B. Güvenli Hata Yönetimi (Fail-Secure)
+- Hata durumlarında kullanıcıya kesinlikle sistem yolları, veritabanı hataları veya iç modül adları döndürülmemeli; hatalar arayüzde filtrelenip anlaşılır mesajlara dönüştürülmelidir (`try/catch` blokları içinde).
+- Gizli kimlik bilgileri, ortam değişkenleri (.env) veya anahtarlar kesinlikle kodun içine gömülmemelidir.
+
+### C. Profil Güvenliği
+- Kullanıcı adı: 2-50 karakter, sadece harf ve boşluk
+- E-posta: Geçerli e-posta formatı
+- Telefon: Türk telefon numarası formatı (+90 veya 0 ile başlayan 10 haneli)
+- Bio: Maksimum 200 karakter
+- Title: 2-30 karakter
+
+---
+
+## 4. GELİŞTİRME KONTROL LİSTESİ (Geliştirici Checkpoint'i)
+Her yeni bileşen veya servis teslim edilmeden önce bu matrise göre test edilmelidir:
+
+| Aşama | Güvenlik & Tasarım Noktası | Hata/Kusur Durumunda Yapılacaklar |
+| :--- | :--- | :--- |
+| **Girdi Sınırı** | Zod şema kontrolü, girdilerin Regex formatı, rate-limiting. | Girişi reddet, kullanıcıya şık ve temiz bir hata göster. |
+| **Arayüz (UI)** | Çiğ emojilerin olmaması, Lucide kullanımı, mobil uyumluluk. | Arayüzü arındır, vektörel ikona veya degrade balona dönüştür. |
+| **Hata Yönetimi** | Catch bloklarının güvenliği, sızıntı kontrolü. | Hata detayını sunucuya logla, istemciye genel açıklama sun. |
+| **Performans** | Derleme hatasının bulunmaması (`npx tsc` temiz olmalıdır). | Kod yapısını, tür tanımlarını ve importları revize et. |
+| **Profil Düzenleme** | Ownership check, Zod validasyonu, loading states. | Yetkisiz erişimi engelle, validasyon hatalarını göster. |
