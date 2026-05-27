@@ -12,6 +12,12 @@ import {
   TrendingUp,
   ChevronRight,
   BookOpen,
+  Wrench,
+  CookingPot,
+  Sprout,
+  Mountain,
+  Laptop,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -20,7 +26,7 @@ const CATEGORIES_DATA = [
   {
     id: "HARDWARE",
     name: "Alet & Hırdavat",
-    icon: "🔧",
+    icon: Wrench,
     desc: "Matkaplar, budama makasları, tamir setleri ve kendin-yap aletleri.",
     sharesCount: 128,
     activeUsers: 42,
@@ -52,7 +58,7 @@ const CATEGORIES_DATA = [
   {
     id: "KITCHEN",
     name: "Mutfak & Yemek",
-    icon: "🍞",
+    icon: CookingPot,
     desc: "Mutfak robotları, hassas teraziler, taze mayalar ve fırıncılık ekipmanları.",
     sharesCount: 74,
     activeUsers: 28,
@@ -74,7 +80,7 @@ const CATEGORIES_DATA = [
   {
     id: "OUTDOOR",
     name: "Bahçe & Bitki",
-    icon: "🌿",
+    icon: Sprout,
     desc: "Budama makasları, saksılar, tırpanlar, tohumlar ve peyzaj ekipmanları.",
     sharesCount: 65,
     activeUsers: 28,
@@ -96,7 +102,7 @@ const CATEGORIES_DATA = [
   {
     id: "BOOKS",
     name: "Kitap & Hobi",
-    icon: "📚",
+    icon: BookOpen,
     desc: "Romanlar, teknik kitaplar, dergiler, kutu oyunları ve hobi malzemeleri.",
     sharesCount: 96,
     activeUsers: 35,
@@ -118,7 +124,7 @@ const CATEGORIES_DATA = [
   {
     id: "SPORTS",
     name: "Spor & Aktivite",
-    icon: "🧗",
+    icon: Mountain,
     desc: "Kamp çadırları, katlanır sandalyeler, bisiklet ekipmanları ve spor aletleri.",
     sharesCount: 52,
     activeUsers: 22,
@@ -140,7 +146,7 @@ const CATEGORIES_DATA = [
   {
     id: "ELECTRONICS",
     name: "Elektronik",
-    icon: "💻",
+    icon: Laptop,
     desc: "Monitörler, projeksiyon cihazları, ses sistemleri ve dijital aksesuarlar.",
     sharesCount: 88,
     activeUsers: 39,
@@ -162,7 +168,7 @@ const CATEGORIES_DATA = [
   {
     id: "MISC",
     name: "Diğer",
-    icon: "📦",
+    icon: Package,
     desc: "Kategorilendirilmemiş diğer tüm paylaşım ve takas eşyaları.",
     sharesCount: 35,
     activeUsers: 15,
@@ -265,12 +271,13 @@ export default function ExplorePage() {
 
             {CATEGORIES_DATA.map((cat) => {
               const isSelected = selectedCat === cat.id;
+              const Icon = cat.icon;
               return (
                 <motion.button
                   key={cat.id}
                   variants={itemVariants}
                   onClick={() => setSelectedCat(cat.id)}
-                  className={`w-full flex items-center justify-between p-4.5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${
+                  className={`w-full flex items-center justify-between p-4.5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${\
                     isSelected
                       ? "border-brand-green bg-brand-green/5 shadow-md shadow-brand-green/5 scale-[1.01]"
                       : "border-border-custom hover:border-brand-green/30 hover:bg-stone-50 dark:hover:bg-stone-900/30"
@@ -278,7 +285,7 @@ export default function ExplorePage() {
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <span className="text-3.5xl h-11 w-11 rounded-xl bg-card-bg border border-border-custom flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-300">
-                      {cat.icon}
+                      <Icon size={24} className="text-stone-700 dark:text-stone-300" />
                     </span>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
@@ -313,7 +320,7 @@ export default function ExplorePage() {
               {/* Header */}
               <div className="flex items-center justify-between border-b border-stone-100 dark:border-stone-850 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{currentCatData.icon}</span>
+                  <span className="text-2xl"><currentCatData.icon size={22} className="text-stone-700 dark:text-stone-300" /></span>
                   <h2 className="font-display font-semibold text-lg text-foreground">
                     {currentCatData.name} Raporu
                   </h2>
@@ -351,7 +358,7 @@ export default function ExplorePage() {
 
                 <div className="bg-stone-50 dark:bg-stone-900/50 border border-border-custom rounded-xl p-3.5 space-y-1">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-stone-400">En Çok Aranan</span>
-                  <span className="block text-[11px] font-extrabold text-brand-clay uppercase tracking-wider truncate py-0.5">
+                  <span className=\"block text-[11px] font-extrabold text-brand-clay uppercase tracking-wider truncate py-0.5\">
                     {currentCatData.popularItem}
                   </span>
                 </div>
