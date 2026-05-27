@@ -1,51 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { doc, getDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import {
-  X, ShieldAlert, User, Package, MessageCircle, Calendar, AlertOctagon, Trash2, UserX, Send
-} from 'lucide-react';
-import { Report, REASON_LABELS, STATUS_CONFIG } from './page'; 
+import { X, ShieldAlert, User as UserIcon, Package, MessageCircle, Calendar, AlertOctagon, Trash2, UserX, Send, CheckCircle } from 'lucide-react';
+import { Report, REASON_LABELS, STATUS_CONFIG } from './page';
 import UserCard from '@/components/layout/UserCard';
 import ListingCard from '@/components/listing/ListingCard';
-import { useStore } from '@/lib/store';
-
-// This will replace all alert() and confirm()
-const ActionModal = ({ isOpen, onClose, onConfirm, title, description, confirmText, isDestructive }: any) => (
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4"
-        >
-          <div className="flex items-start gap-4">
-            <div className={`mt-1 h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${isDestructive ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-              <AlertOctagon size={20} className={isDestructive ? 'text-red-500' : 'text-blue-500'} />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">{title}</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{description}</p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">İptal</button>
-            <button onClick={onConfirm} className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors ${isDestructive ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}>{confirmText}</button>
-          </div>
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
+import { useStore, User, Listing } from '@/lib/store';
+import { ActionModal } from '@/components/ui/ActionModal';
 
 interface ReportDetailDrawerProps {
   report: Report;
@@ -54,11 +18,11 @@ interface ReportDetailDrawerProps {
 }
 
 export default function ReportDetailDrawer({ report, onClose, onStatusChange }: ReportDetailDrawerProps) {
-  const [targetData, setTargetData] = useState<any>(null);
-  const [reporterData, setReporterData] = useState<any>(null);
+  const [targetData, setTargetData] = useState<User | Listing | null>(null);
+  const [reporterData, setReporterData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modalState, setModalState] = useState({ isOpen: false, action: '', title: '', description: '' });
-  const { showToast } = useStore();
+  const [modalState, setModalState] = useState({ isOpen: false, action: '', title: '', description: '', isSubmitting: false });
+  const { showToast, currentUser, logoutUser } = useStore();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,8 +31,19 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
         const targetRef = doc(db, report.targetType === 'listing' ? 'listings' : 'users', report.targetId);
         const reporterRef = doc(db, 'users', report.reporterId);
         const [targetSnap, reporterSnap] = await Promise.all([getDoc(targetRef), getDoc(reporterRef)]);
-        setTargetData(targetSnap.exists() ? { id: targetSnap.id, ...targetSnap.data() } : null);
-        setReporterData(reporterSnap.exists() ? { id: reporterSnap.id, ...reporterSnap.data() } : null);
+        
+        if (targetSnap.exists()) {
+            setTargetData({ id: targetSnap.id, ...targetSnap.data() } as User | Listing);
+        } else {
+            setTargetData(null);
+        }
+
+        if (reporterSnap.exists()) {
+            setReporterData({ id: reporterSnap.id, ...reporterSnap.data() } as User);
+        } else {
+            setReporterData(null)
+        }
+
       } catch (error) {
         console.error('Failed to fetch report details:', error);
         showToast({ message: 'Rapor detayları yüklenemedi.', type: 'error' });
@@ -81,13 +56,19 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
 
   const handleAction = async () => {
     const action = modalState.action;
-    setModalState({ ...modalState, isOpen: false }); // Close modal immediately
+    setModalState(prev => ({ ...prev, isSubmitting: true }));
 
     try {
       const batch = writeBatch(db);
       const reportRef = doc(db, 'reports', report.id);
 
-      if (action === 'archive_listing') {
+      if (action === 'resolve_report') {
+          batch.update(reportRef, { status: 'resolved' });
+          await batch.commit();
+          onStatusChange(report.id, 'resolved');
+          showToast({ message: 'Rapor çözüldü olarak işaretlendi.', type: 'success' });
+      } else if (action === 'archive_listing') {
+        if (report.targetType !== 'listing') throw new Error("Hedef bir ilan değil.");
         const listingRef = doc(db, 'listings', report.targetId);
         batch.update(listingRef, { status: 'archived' });
         batch.update(reportRef, { status: 'resolved' });
@@ -95,7 +76,9 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
         onStatusChange(report.id, 'resolved');
         showToast({ message: 'İlan arşivlendi ve rapor çözüldü.', type: 'success' });
       } else if (action === 'ban_user') {
-        const userIdToBan = report.targetType === 'user' ? report.targetId : targetData?.owner.id;
+        const targetIsListing = report.targetType === 'listing';
+        const userIdToBan = targetIsListing ? (targetData as Listing)?.owner.id : report.targetId;
+
         if (!userIdToBan) throw new Error('Yasaklanacak kullanıcı IDsi bulunamadı.');
         const userRef = doc(db, 'users', userIdToBan);
         batch.update(userRef, { isBanned: true, role: 'banned' });
@@ -105,21 +88,46 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
         showToast({ message: 'Kullanıcı yasaklandı ve rapor çözüldü.', type: 'success' });
       }
 
-      onClose(); // Close drawer on success
+      setModalState({ isOpen: false, action: '', title: '', description: '', isSubmitting: false });
+      onClose(); 
     } catch (error: any) {
       console.error('Moderasyon işlemi başarısız:', error);
       showToast({ message: `Hata: ${error.message}`, type: 'error' });
+      setModalState(prev => ({ ...prev, isSubmitting: false }));
     }
   };
 
-  const openModal = (action: 'archive_listing' | 'ban_user') => {
-    if (action === 'archive_listing') {
-      setModalState({ isOpen: true, action, title: 'İlanı Arşivle?', description: `Bu ilanı yayından kaldırmak istediğinizden emin misiniz? Bu işlem geri alınamaz ve ilan kalıcı olarak arşivlenir.`, });
-    } else if (action === 'ban_user') {
-      const userName = targetData?.name || 'bu kullanıcıyı';
-      setModalState({ isOpen: true, action, title: 'Kullanıcıyı Yasakla?', description: `${userName} adlı kullanıcıyı kalıcı olarak yasaklamak istediğinizden emin misiniz? Kullanıcı bir daha platforma giriş yapamaz.` });
-    }
+  const openModal = (action: 'archive_listing' | 'ban_user' | 'resolve_report') => {
+      let title = '', description = '';
+      switch(action){
+          case 'archive_listing':
+              title = 'İlanı Arşivle?';
+              description = 'Bu ilanı yayından kaldırmak istediğinizden emin misiniz? Bu işlem geri alınamaz ve ilan kalıcı olarak arşivlenir.';
+              break;
+          case 'ban_user':
+              const userName = (targetData as User)?.name || 'bu kullanıcıyı';
+              title = 'Kullanıcıyı Yasakla?';
+              description = `${userName} adlı kullanıcıyı kalıcı olarak yasaklamak istediğinizden emin misiniz? Kullanıcı bir daha platforma giriş yapamaz.`;
+              break;
+          case 'resolve_report':
+              title = 'Raporu Kapat?';
+              description = 'Bu raporun geçersiz olduğuna ve bir işlem yapılmasına gerek olmadığına emin misiniz?';
+              break;
+      }
+    setModalState({ isOpen: true, action, title, description, isSubmitting: false });
   };
+
+  const getModalActionType = () => {
+      switch(modalState.action) {
+          case 'archive_listing':
+          case 'ban_user':
+              return 'ban';
+          case 'resolve_report':
+              return 'approve';
+          default: 
+              return 'default';
+      }
+  }
 
   return (
     <>
@@ -145,7 +153,6 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
 
         {/* Content */}
         <div className="p-6 space-y-6 overflow-y-auto">
-            {/* Report Info */}
             <div className='space-y-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800'>
                 <div className='flex justify-between items-start'>
                     <div>
@@ -161,26 +168,21 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
                  </div>
             </div>
 
-            {/* Target Context */}
             <div>
                 <h4 className='text-sm font-bold mb-2 text-slate-800 dark:text-slate-200'>{report.targetType === 'listing' ? 'Rapor Edilen İlan' : 'Rapor Edilen Kullanıcı'}</h4>
                 {loading ? <div className='h-48 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse'></div> :
                 targetData ? (
-                    report.targetType === 'listing' ? <ListingCard listing={targetData} /> : <UserCard user={targetData} />
+                    report.targetType === 'listing' ? <ListingCard item={targetData as Listing} onClick={() => {}} /> : <UserCard currentUser={targetData as User} onLoginClick={() => {}} onLogout={() => {}} />
                 ) : <div className='text-center py-10'><p className='text-sm text-slate-500'>Rapor edilen içerik bulunamadı veya silinmiş.</p></div>}
             </div>
 
-            {/* Actions */}
             <div className='space-y-4'>
                 <h4 className='text-sm font-bold text-slate-800 dark:text-slate-200'>İnceleme ve Karar</h4>
-                
                 <div className='grid grid-cols-2 gap-2'>
-                     {/* These actions are safe and for review */}
-                     <button className='p-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 bg-slate-200/80 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors'><Send size={14}/>Kullanıcıya Uyarı Gönder</button>
-                     <button onClick={() => { onStatusChange(report.id, 'resolved'); showToast({message: 'Rapor çözüldü olarak işaretlendi.'}); onClose(); }} className='p-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 bg-slate-200/80 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors'><CheckCircle size={14}/>Raporu Kapat (Geçerli Değil)</button>
+                     <button disabled className='p-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 bg-slate-200/80 dark:bg-slate-800 transition-colors opacity-50 cursor-not-allowed'><Send size={14}/>Kullanıcıya Uyarı Gönder</button>
+                     <button onClick={() => openModal('resolve_report')} className='p-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 bg-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-500/30 transition-colors'><CheckCircle size={14}/>Raporu Kapat (Geçerli Değil)</button>
                 </div>
 
-                {/* Destructive Actions */}
                 <div className='bg-red-500/10 border border-red-500/20 rounded-xl p-4 space-y-3'>
                      <h5 className='font-bold text-red-600 dark:text-red-400 flex items-center gap-2'><AlertOctagon size={16}/>Yıkıcı Eylemler</h5>
                      <p className='text-xs text-red-500/80'>Bu bölgedeki eylemler kalıcı sonuçlar doğurabilir. Dikkatli olun.</p>
@@ -195,12 +197,12 @@ export default function ReportDetailDrawer({ report, onClose, onStatusChange }: 
 
       <ActionModal 
         isOpen={modalState.isOpen}
-        onClose={() => setModalState({ ...modalState, isOpen: false })}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
         onConfirm={handleAction}
         title={modalState.title}
         description={modalState.description}
-        confirmText={modalState.action === 'archive_listing' ? 'Arşivle' : 'Yasakla'}
-        isDestructive={true}
+        action={getModalActionType()}
+        isSubmitting={modalState.isSubmitting}
       />
     </>
   );

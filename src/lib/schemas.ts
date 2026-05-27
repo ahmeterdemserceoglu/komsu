@@ -53,6 +53,20 @@ export const CATEGORY_LABELS: Record<string, string> = {
   MISC: "Diğer",
 };
 
+export const TYPE_LABELS: Record<string, string> = {
+  borrow: "Ödünç",
+  ask: "Tavsiye",
+  gift: "Hediye",
+  sell: "Satılık",
+};
+
+export const TYPE_COLORS: Record<string, string> = {
+  borrow: "bg-sky-500",
+  ask: "bg-violet-500",
+  gift: "bg-emerald-500",
+  sell: "bg-orange-500",
+};
+
 
 // Feed Post Schema
 export const feedPostSchema = z.object({

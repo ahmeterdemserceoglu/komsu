@@ -28,6 +28,7 @@ export interface User {
   role?: "user" | "admin" | "banned";
   favorites?: string[];
   isBanned?: boolean;
+  isVerified?: boolean; // <-- Eklendi
 }
 
 export interface Listing {
@@ -121,6 +122,7 @@ export interface Review {
 }
 
 export type ThemeMode = "light" | "dark" | "system";
+export type ToastType = { message: string; type: "success" | "error" | "info" };
 
 interface StoreContextType {
   currentUser: User | null;
@@ -137,6 +139,9 @@ interface StoreContextType {
   isLoading: boolean;
   error: string | null;
   theme: ThemeMode;
+  toast: ToastType | null; // <-- Eklendi
+  showToast: (toast: ToastType) => void; // <-- Eklendi
+  hideToast: () => void; // <-- Eklendi
   clearError: () => void;
   setTheme: (theme: ThemeMode) => void;
   registerUser: (name: string, email: string, phone: string, password: string, title?: string, bio?: string) => Promise<void>;
@@ -190,7 +195,6 @@ const getValidationError = (err: any, fallback: string) => {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// Helper: Firebase RTDB rejects undefined values. Strip them from objects.
 const stripUndefined = (obj: any): any => {
   if (obj === null || obj === undefined) return null;
   if (Array.isArray(obj)) return obj.map(stripUndefined);
@@ -219,6 +223,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const listingsPerPage = 12;
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastType | null>(null); // <-- Eklendi
 
   // Theme
   const [theme, setThemeState] = useState<ThemeMode>("light");
@@ -238,7 +243,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Load theme on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("komsu_theme") as ThemeMode | null;
@@ -248,10 +252,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [setTheme]);
 
-  // Computed
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
-  // Presence Tracking
   useEffect(() => {
     if (!currentUser) return;
 
@@ -261,13 +263,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       const unsubConnected = onValue(connectedRef, (snap) => {
         if (snap.val() === true) {
-          // Set user as online
           set(myConnectionsRef, {
             state: "online",
             last_changed: rtdbTimestamp()
           }).catch(err => console.error("Failed to set online status", err));
 
-          // Set user to offline on disconnect
           onDisconnect(myConnectionsRef).set({
             state: "offline",
             last_changed: rtdbTimestamp()
@@ -277,7 +277,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       return () => {
         unsubConnected();
-        // Set offline when unmounting (logging out or closing)
         set(myConnectionsRef, {
           state: "offline",
           last_changed: rtdbTimestamp()
@@ -288,7 +287,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [currentUser]);
 
-  // Load cached data on mount
   useEffect(() => {
     const cachedListings = localStorage.getItem('komsu_listings');
     const cachedFeedPosts = localStorage.getItem('komsu_feed_posts');
@@ -310,14 +308,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Cache listings when they change
   useEffect(() => {
     if (listings.length > 0) {
       localStorage.setItem('komsu_listings', JSON.stringify(listings));
     }
   }, [listings]);
 
-  // Cache feed posts when they change
   useEffect(() => {
     if (feedPosts.length > 0) {
       localStorage.setItem('komsu_feed_posts', JSON.stringify(feedPosts));
@@ -325,6 +321,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [feedPosts]);
 
   const clearError = () => setError(null);
+  
+  // Toast Notifications
+  const showToast = useCallback((toastData: ToastType) => {
+    setToast(toastData);
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast(null);
+  }, []);
+
+  // Auto-hide toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        hideToast();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast, hideToast]);
 
   // Initialize Auth & Listeners
   useEffect(() => {
@@ -338,8 +353,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               signOut(auth);
               setCurrentUser(null);
               setIsAuthLoading(false);
-              setError("Hesabınız topluluk kurallarını ihlal ettiği için engellenmiştir.");
-              alert("Hesabınız topluluk kurallarını ihlal ettiği için engellenmiştir.");
+              showToast({ message: "Hesabınız askıya alınmıştır.", type: "error" });
             } else {
               if (!data.role) {
                 updateDoc(doc(db, "users", firebaseUser.uid), { role: "user" }).catch((err) => {
@@ -362,18 +376,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
-    // Listen to Listings
     const qListings = query(collection(db, "listings"), orderBy("createdAt", "desc"));
     const unsubListings = onSnapshot(qListings, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Listing));
       setListings(data);
+    }, (error) => {
+        console.error("Listing snapshot error:", error);
+        showToast({ message: "İlanlar yüklenirken bir hata oluştu.", type: "error" });
     });
 
-    // Listen to Feed Posts
     const qPosts = query(collection(db, "feed_posts"), orderBy("createdAt", "desc"));
     const unsubPosts = onSnapshot(qPosts, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedPost));
       setFeedPosts(data);
+     }, (error) => {
+        console.error("Feed post snapshot error:", error);
+        showToast({ message: "Paylaşımlar yüklenirken bir hata oluştu.", type: "error" });
     });
 
     return () => {
@@ -381,7 +399,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubListings();
       unsubPosts();
     };
-  }, []);
+  }, [showToast]);
 
   // Listen to User's Conversations (RTDB)
   useEffect(() => {
@@ -392,7 +410,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data = snapshot.val();
       if (data) {
         const rawConvs = Object.values(data) as Conversation[];
-        // Sanitize conversations: ensure buyer/seller exist and messages is a clean array
         const defaultUser = { id: '', name: 'Bilinmeyen', title: '', bio: '', skills: [], joinedDate: '' } as User;
         const convs = rawConvs
           .filter(c => c != null && typeof c === 'object' && c.id)
@@ -448,9 +465,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       userSchema.parse({ name, email, phone, password, title, bio });
     } catch (err: any) {
-      console.error("Validation failed", err);
-      const message = getValidationError(err, "Girdiler doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
-      setError(message);
+      const message = getValidationError(err, "Girdiler doğrulanamadı.");
+      showToast({ message, type: "error" });
       setIsLoading(false);
       throw new Error(message);
     }
@@ -459,16 +475,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const phoneQuery = query(collection(db, "users"), where("phone", "==", phone));
       const phoneSnapshot = await getDocs(phoneQuery);
       if (!phoneSnapshot.empty) {
-        setError("Bu telefon numarası zaten kullanımda.");
+        const message = "Bu telefon numarası zaten kullanımda.";
+        showToast({ message, type: "error" });
         setIsLoading(false);
-        throw new Error("Bu telefon numarası zaten kullanımda.");
+        throw new Error(message);
       }
     } catch (err) {
       if ((err as Error).message === "Bu telefon numarası zaten kullanımda.") throw err;
-      console.error("Phone check failed", err);
-      setError("Telefon kontrolü başarısız. Lütfen tekrar deneyin.");
+      const message = "Telefon kontrolü başarısız.";
+      showToast({ message, type: "error" });
       setIsLoading(false);
-      throw new Error("Telefon kontrolü başarısız. Lütfen tekrar deneyin.");
+      throw new Error(message);
     }
 
     const joinedDate = new Date().toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
@@ -486,6 +503,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         joinedDate,
         role: "user",
         favorites: [],
+        isVerified: false,
       };
       
       await setDoc(doc(db, "users", user.uid), newUserData);
@@ -493,7 +511,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await addDoc(collection(db, "feed_posts"), {
         type: "announcement",
         title: "ARAMIZA YENİ BİRİ KATILDI",
-        content: `MERHABA. BEN ${name.toUpperCase()}. PLATFORMA KATILDIM. SİZLERLE YARDIMLAŞMAK VE PAYLAŞMAK İÇİN BURADAYIM!`,
+        content: `MERHABA. BEN ${name.toUpperCase()}. PLATFORMA KATILDIM!`,
         author: { id: user.uid, ...newUserData },
         createdAt: serverTimestamp(),
         likes: 0,
@@ -501,14 +519,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         commentsCount: 0,
       });
 
+      showToast({ message: "Hoş geldin! Hesabın başarıyla oluşturuldu.", type: "success" });
       router.push("/");
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string; code?: string };
-      console.error("Registration failed", err);
-      setError(firebaseErr.message || "Kayıt başarısız oldu. Lütfen tekrar deneyin.");
-      const customError = new Error(firebaseErr.message || "Kayıt başarısız oldu.");
-      (customError as unknown as { code: string }).code = firebaseErr.code || "";
-      throw customError;
+      const message = firebaseErr.message || "Kayıt başarısız oldu.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -521,23 +538,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       loginSchema.parse({ email, password });
     } catch (err: any) {
-      console.error("Validation failed", err);
-      const message = getValidationError(err, "Girdiler doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
-      setError(message);
+      const message = getValidationError(err, "Girdiğiniz bilgiler hatalı.");
+      showToast({ message, type: "error" });
       setIsLoading(false);
       throw new Error(message);
     }
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+       showToast({ message: "Tekrar hoş geldin!", type: "success" });
       router.push("/");
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string; code?: string };
-      console.error("Login failed", err);
-      setError(firebaseErr.message || "Giriş başarısız oldu. Lütfen tekrar deneyin.");
-      const customError = new Error(firebaseErr.message || "Giriş başarısız oldu.");
-      (customError as unknown as { code: string }).code = firebaseErr.code || "";
-      throw customError;
+      const message = firebaseErr.message || "Giriş başarısız oldu.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -558,12 +573,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       
       const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      showToast({ message: "Doğrulama kodu gönderildi.", type: "info" });
       return confirmationResult;
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to send OTP", err);
-      setError(firebaseErr.message || "OTP gönderilemedi. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "OTP gönderilemedi. Lütfen tekrar deneyin.");
+      const message = firebaseErr.message || "OTP gönderilemedi.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -587,14 +603,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         joinedDate: new Date().toLocaleDateString("tr-TR"),
         role: "user",
         favorites: [],
+        isVerified: false,
       }, { merge: true });
 
+      showToast({ message: "Başarıyla giriş yaptın!", type: "success" });
       router.push("/");
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to verify OTP", err);
-      setError(firebaseErr.message || "OTP doğrulaması başarısız. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "OTP doğrulaması başarısız. Lütfen tekrar deneyin.");
+      const message = firebaseErr.message || "OTP doğrulaması başarısız.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -609,10 +627,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       profileUpdateSchema.parse({ name, email, phone, title, bio });
     } catch (err) {
-      console.error("Validation failed", err);
-      setError("Profil bilgileri doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
+      const message = "Profil bilgileri doğrulanamadı.";
+      showToast({ message, type: "error" });
       setIsLoading(false);
-      throw new Error("Profil bilgileri doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
+      throw new Error(message);
     }
 
     try {
@@ -626,11 +644,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
 
       await updateAuthProfile(auth.currentUser!, { displayName: name });
+      showToast({ message: "Profilin başarıyla güncellendi.", type: "success" });
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Profile update failed", err);
-      setError(firebaseErr.message || "Profil güncellenemedi. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "Profil güncellenemedi. Lütfen tekrar deneyin.");
+      const message = firebaseErr.message || "Profil güncellenemedi.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -645,10 +664,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       listingSchema.parse({ title, description, category, type, condition, location, price });
     } catch (err) {
-      console.error("Validation failed", err);
-      setError("İlan bilgileri doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
+      const message = "İlan bilgileri doğrulanamadı.";
+      showToast({ message, type: "error" });
       setIsLoading(false);
-      throw new Error("İlan bilgileri doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
+      throw new Error(message);
     }
 
     const resolvedImageUrls = imageUrls || (imageUrl ? [imageUrl] : []);
@@ -679,7 +698,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       await addDoc(collection(db, "feed_posts"), {
         type: "listing_share",
-        content: `YENİ BİR İLAN PAYLAŞTI: ${title.toUpperCase()} [${type === "borrow" ? "ÖDÜNÇ" : type === "gift" ? "HEDİYE" : type === "sell" ? "SATILIK" : "ARANIYOR"}]`,
+        content: `YENİ BİR İLAN PAYLAŞTI: ${title.toUpperCase()}`,
         author: currentUser,
         createdAt: serverTimestamp(),
         likes: 0,
@@ -688,12 +707,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         category,
       });
 
+      showToast({ message: "İlanın başarıyla yayınlandı!", type: "success" });
       router.push("/");
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to add listing", err);
-      setError(firebaseErr.message || "İlan oluşturulamadı. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "İlan oluşturulamadı. Lütfen tekrar deneyin.");
+      const message = firebaseErr.message || "İlan oluşturulamadı.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -702,25 +722,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteListing = async (listingId: string) => {
     if (!currentUser) return;
 
-    setIsLoading(true);
-    setError(null);
-
     try {
       const listing = listings.find(l => l.id === listingId);
-      if (!listing) {
-        throw new Error("İlan bulunamadı");
-      }
-
-      if (listing.owner.id !== currentUser.id && currentUser.role !== "admin") {
-        throw new Error("Bu ilanı silme yetkiniz yok");
-      }
-
+      if (!listing) throw new Error("İlan bulunamadı");
+      if (listing.owner.id !== currentUser.id && currentUser.role !== "admin") throw new Error("Bu ilanı silme yetkiniz yok");
       await deleteDoc(doc(db, "listings", listingId));
+      showToast({ message: "İlan başarıyla silindi.", type: "success" });
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to delete listing", err);
-      setError(firebaseErr.message || "İlan silinemedi. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "İlan silinemedi. Lütfen tekrar deneyin.");
+      const message = firebaseErr.message || "İlan silinemedi.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -729,16 +741,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addFeedPost = async (content: string, type: FeedPost["type"], title?: string) => {
     if (!currentUser) return;
 
-    setIsLoading(true);
-    setError(null);
-
     try {
       feedPostSchema.parse({ content, type, title });
     } catch (err: any) {
-      console.error("Validation failed", err);
-      const message = getValidationError(err, "Paylaşım bilgileri doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
-      setError(message);
-      setIsLoading(false);
+      const message = getValidationError(err, "Paylaşım bilgileri hatalı.");
+      showToast({ message, type: "error" });
       throw new Error(message);
     }
 
@@ -755,11 +762,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       await addDoc(collection(db, "feed_posts"), postData);
+      showToast({ message: "Paylaşımın yapıldı.", type: "success" });
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to add post", err);
-      setError(firebaseErr.message || "Paylaşım oluşturulamadı. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "Paylaşım oluşturulamadı. Lütfen tekrar deneyin.");
+      const message = firebaseErr.message || "Paylaşım oluşturulamadı.";
+      showToast({ message, type: "error" });
+      throw new Error(message);
     } finally {
       setIsLoading(false);
     }
@@ -768,14 +776,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const startConversation = async (listingId: string, seller: User): Promise<string> => {
     if (!currentUser) return "";
 
-    setIsLoading(true);
-    setError(null);
-    
     const existing = conversations.find(c => c.listingId === listingId && (c.buyer.id === currentUser.id || c.seller.id === currentUser.id));
     if (existing) {
       setActiveConversationId(existing.id);
       setChatOpen(true);
-      setIsLoading(false);
       return existing.id;
     }
 
@@ -799,27 +803,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return newConvId;
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to start conversation", err);
-      setError(firebaseErr.message || "Sohbet başlatılamadı. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "Sohbet başlatılamadı. Lütfen tekrar deneyin.");
-    } finally {
-      setIsLoading(false);
-    }
+      showToast({ message: firebaseErr.message || "Sohbet başlatılamadı.", type: "error" });
+      throw new Error(firebaseErr.message || "Sohbet başlatılamadı.");
+    } 
   };
 
   const sendMessage = async (conversationId: string, content: string) => {
     if (!currentUser) return;
 
-    setIsLoading(true);
-    setError(null);
-
     try {
       messageSchema.parse({ content });
     } catch (err) {
-      console.error("Validation failed", err);
-      setError("Mesaj doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
-      setIsLoading(false);
-      throw new Error("Mesaj doğrulanamadı. Lütfen bilgilerinizi kontrol edin.");
+      showToast({ message: "Mesaj gönderilemedi.", type: "error" });
+      throw new Error("Mesaj gönderilemedi.");
     }
 
     const conv = conversations.find(c => c.id === conversationId);
@@ -847,7 +843,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await set(ref(rtdb, `user_conversations/${receiver.id}/${conversationId}/lastMessage`), content);
       await set(ref(rtdb, `user_conversations/${receiver.id}/${conversationId}/updatedAt`), rtdbTimestamp());
 
-      // Create notification for receiver
       await createNotification(
         receiver.id,
         "message_received",
@@ -856,11 +851,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       );
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to send message", err);
-      setError(firebaseErr.message || "Mesaj gönderilemedi. Lütfen tekrar deneyin.");
-      throw new Error(firebaseErr.message || "Mesaj gönderilemedi. Lütfen tekrar deneyin.");
-    } finally {
-      setIsLoading(false);
+      showToast({ message: firebaseErr.message || "Mesaj gönderilemedi.", type: "error" });
+      throw new Error(firebaseErr.message || "Mesaj gönderilemedi.");
     }
   };
 
@@ -881,9 +873,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     location?: { lat: number; lng: number; address: string }
   ) => {
     if (!currentUser) return;
-
-    setIsLoading(true);
-    setError(null);
 
     const conv = conversations.find(c => c.id === conversationId);
     if (!conv) return;
@@ -913,7 +902,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await set(ref(rtdb, `user_conversations/${receiver.id}/${conversationId}/lastMessage`), content);
       await set(ref(rtdb, `user_conversations/${receiver.id}/${conversationId}/updatedAt`), rtdbTimestamp());
 
-      // Create notification for receiver
       await createNotification(
         receiver.id,
         "message_received",
@@ -923,11 +911,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       );
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to send rich message", err);
-      setError(firebaseErr.message || "Mesaj gönderilemedi. Lütfen tekrar deneyin.");
+      showToast({ message: firebaseErr.message || "Mesaj gönderilemedi.", type: "error" });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -950,9 +935,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateListing = async (listingId: string, title: string, description: string, category: string, type: Listing["type"], condition: string, location: string, price?: number, imageUrl?: string, imageUrls?: string[]) => {
     if (!currentUser) return;
-
-    setIsLoading(true);
-    setError(null);
 
     try {
       const listingRef = doc(db, "listings", listingId);
@@ -978,14 +960,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       await updateDoc(listingRef, updateData);
+      showToast({ message: "İlan başarıyla güncellendi.", type: "success" });
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to update listing", err);
-      setError(firebaseErr.message || "İlan güncellenemedi. Lütfen tekrar deneyin.");
+      showToast({ message: firebaseErr.message || "İlan güncellenemedi.", type: "error" });
       throw err;
-    } finally {
-      setIsLoading(false);
-    }
+    } 
   };
 
   const toggleLikePost = async (postId: string) => {
@@ -1009,7 +989,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           likedBy: [...(post.likedBy || []), currentUser.id]
         });
 
-        // Notify post author
         if (post.author.id !== currentUser.id) {
           await createNotification(
             post.author.id,
@@ -1021,17 +1000,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (e: unknown) {
       const firebaseErr = e as { message?: string };
-      console.error(e);
-      setError(firebaseErr.message || "Beğeni işlemi başarısız oldu.");
+      showToast({ message: firebaseErr.message || "Beğeni işlemi başarısız oldu.", type: "error" });
       throw new Error(firebaseErr.message || "Beğeni işlemi başarısız oldu.");
     }
   };
 
   const addComment = async (postId: string, content: string) => {
     if (!currentUser) return;
-
-    setIsLoading(true);
-    setError(null);
 
     try {
       const commentsRef = collection(db, "feed_posts", postId, "comments");
@@ -1054,7 +1029,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         commentsCount: increment(1)
       });
 
-      // Notify post author
       const post = feedPosts.find((p) => p.id === postId);
       if (post && post.author.id !== currentUser.id) {
         await createNotification(
@@ -1066,19 +1040,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to add comment", err);
-      setError(firebaseErr.message || "Yorum eklenemedi. Lütfen tekrar deneyin.");
+      showToast({ message: firebaseErr.message || "Yorum eklenemedi.", type: "error" });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const addListingComment = async (listingId: string, content: string) => {
     if (!currentUser) return;
-
-    setIsLoading(true);
-    setError(null);
 
     try {
       const commentsRef = collection(db, "listings", listingId, "comments");
@@ -1101,35 +1069,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           commentsCount: increment(1)
         });
       } catch (updateErr) {
-        console.warn("Failed to increment commentsCount (expected if firestore.rules are not deployed):", updateErr);
+        console.warn("Could not increment comment count.", updateErr);
       }
 
-      // Notify listing owner
       const listing = listings.find((l) => l.id === listingId);
       if (listing && listing.owner.id !== currentUser.id) {
         await createNotification(
           listing.owner.id,
           "listing_status_changed",
           "İlanınıza Yeni Soru",
-          `${currentUser.name} "${listing.title}" ilanınıza yeni bir soru yazdı.`,
+          `${currentUser.name} "${listing.title}" ilanınıza bir soru sordu.`,
           `/?openListing=${listingId}&highlightComment=${commentDocRef.id}`
         );
       }
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to add listing comment", err);
-      setError(firebaseErr.message || "Yorum eklenemedi. Lütfen tekrar deneyin.");
+      showToast({ message: firebaseErr.message || "Yorum eklenemedi.", type: "error" });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const answerListingComment = async (listingId: string, commentId: string, answerContent: string) => {
     if (!currentUser) return;
-
-    setIsLoading(true);
-    setError(null);
 
     try {
       const commentRef = doc(db, "listings", listingId, "comments", commentId);
@@ -1138,7 +1099,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         answeredAt: serverTimestamp()
       });
 
-      // Notify the asker
       const commentSnap = await getDoc(commentRef);
       if (commentSnap.exists()) {
         const commentData = commentSnap.data();
@@ -1148,22 +1108,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             commentData.author.id,
             "listing_status_changed",
             "Sorunuz Cevaplandı",
-            `"${listing?.title || 'İlan'}" hakkındaki sorunuz ilan sahibi tarafından cevaplandı.`,
+            `"${listing?.title || 'İlan'}" hakkındaki sorunuz cevaplandı.`,
             `/?openListing=${listingId}&highlightComment=${commentId}`
           );
         }
       }
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to answer listing comment", err);
-      setError(firebaseErr.message || "Cevap eklenemedi. Lütfen tekrar deneyin.");
+      showToast({ message: firebaseErr.message || "Cevap gönderilemedi.", type: "error" });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // --- FAVORITES ---
   const toggleFavorite = async (listingId: string) => {
     if (!currentUser) return;
 
@@ -1185,20 +1141,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           favoriteCount: increment(1),
         });
 
-        // Notify listing owner
         const listing = listings.find((l) => l.id === listingId);
         if (listing && listing.owner.id !== currentUser.id) {
           await createNotification(
             listing.owner.id,
             "listing_favorited",
             "Yeni Favori",
-            `${currentUser.name} "${listing.title}" ilanınızı favorilere ekledi.`
+            `${currentUser.name} "${listing.title}" ilanınızı favoriledi.`
           );
         }
       }
     } catch (err) {
       console.error("Failed to toggle favorite", err);
-      setError("Favori işlemi başarısız oldu.");
+      showToast({ message: "Favori işlemi başarısız.", type: "error" });
     }
   };
 
@@ -1206,12 +1161,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return currentUser?.favorites?.includes(listingId) || false;
   };
 
-  // --- REVIEWS ---
   const addReview = async (reviewedUserId: string, rating: number, comment: string, listingId?: string) => {
     if (!currentUser) return;
-
-    setIsLoading(true);
-    setError(null);
 
     try {
       await addDoc(collection(db, "reviews"), {
@@ -1224,20 +1175,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createdAt: serverTimestamp(),
       });
 
-      // Notify reviewed user
       await createNotification(
         reviewedUserId,
         "review_received",
         "Yeni Değerlendirme",
         `${currentUser.name} size ${rating} yıldız verdi.`
       );
+      showToast({ message: "Değerlendirmeniz için teşekkürler!", type: "success" });
     } catch (err: unknown) {
       const firebaseErr = err as { message?: string };
-      console.error("Failed to add review", err);
-      setError(firebaseErr.message || "Değerlendirme eklenemedi.");
+      showToast({ message: firebaseErr.message || "Değerlendirme gönderilemedi.", type: "error" });
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -1246,7 +1194,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const q = query(collection(db, "reviews"), where("reviewedUserId", "==", userId));
       const snapshot = await getDocs(q);
       const reviews = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Review));
-      // Sort client-side to avoid requiring a Firestore composite index
       reviews.sort((a, b) => {
         const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
         const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
@@ -1259,7 +1206,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // --- REPORTS ---
   const addReport = async (targetType: "listing" | "user", targetId: string, reason: string, description: string) => {
     if (!currentUser) return;
 
@@ -1274,14 +1220,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: "pending",
         createdAt: serverTimestamp(),
       });
+      showToast({ message: "Raporun bize ulaştı. Teşekkür ederiz.", type: "success" });
     } catch (err) {
       console.error("Failed to submit report", err);
-      setError("Rapor gönderilemedi. Lütfen tekrar deneyin.");
+      showToast({ message: "Rapor gönderilemedi.", type: "error" });
       throw err;
     }
   };
 
-  // --- NOTIFICATIONS ---
   const createNotification = async (userId: string, type: Notification["type"], title: string, message: string, link?: string) => {
     try {
       await addDoc(collection(db, "notifications", userId, "items"), {
@@ -1335,6 +1281,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentUser, isAuthLoading, listings, feedPosts, conversations, notifications, unreadNotificationCount,
       activeConversationId, isChatOpen,
       listingsPage, listingsPerPage, isLoading, error, theme, clearError, setTheme,
+      toast, showToast, hideToast, // <-- Eklendi
       registerUser, loginUser, sendOtp, verifyOtp, updateUserProfile, addListing, deleteListing, addFeedPost, sendMessage, sendMessageRich, markMessageAsRead, updateListing, addComment, addListingComment, answerListingComment, startConversation, toggleLikePost,
       toggleFavorite, isFavorited, addReview, getUserReviews, addReport,
       markNotificationRead, markAllNotificationsRead, createNotification,

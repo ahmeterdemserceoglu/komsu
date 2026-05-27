@@ -77,7 +77,7 @@ const CATEGORIES_DATA = [
       },
     ],
   },
-  {
+    {
     id: "OUTDOOR",
     name: "Bahçe & Bitki",
     icon: Sprout,
@@ -197,36 +197,18 @@ export default function ExplorePage() {
 
   const currentCatData = CATEGORIES_DATA.find((cat) => cat.id === selectedCat) || CATEGORIES_DATA[0];
 
-  // Motion variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 120, damping: 14 } },
-  };
+  const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 120, damping: 14 } } };
 
   return (
     <div className="min-h-screen bg-background pb-12 relative overflow-hidden">
-      {/* Decorative gradient meshes */}
       <div className="absolute top-[-15%] right-[-10%] w-[60%] h-[60%] bg-brand-cream/30 rounded-full filter blur-[130px] pointer-events-none opacity-80"></div>
       <div className="absolute bottom-[-10%] left-[-15%] w-[50%] h-[50%] bg-brand-sage/15 rounded-full filter blur-[120px] pointer-events-none opacity-60"></div>
 
-      {/* Navigation Header */}
       <header className="sticky top-0 z-30 bg-card-bg/85 backdrop-blur-md border-b border-border-custom px-4 md:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-custom hover:bg-stone-50 dark:hover:bg-stone-900 text-xs font-bold text-stone-600 dark:text-stone-400 transition-all cursor-pointer"
-          >
+        <Link href="/" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-custom hover:bg-stone-50 dark:hover:bg-stone-900 text-xs font-bold text-stone-600 dark:text-stone-400 transition-all cursor-pointer">
             <ArrowLeft size={14} /> <span>Panoya Dön</span>
-          </Link>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <span className="h-8 w-8 rounded-xl bg-brand-green text-background flex items-center justify-center text-md font-bold font-display shadow-md shadow-brand-green/20">
             P
@@ -235,40 +217,18 @@ export default function ExplorePage() {
         </div>
       </header>
 
-      {/* Main Content explore */}
       <main className="w-full px-4 md:px-8 lg:px-12 py-8 space-y-8">
-        
-        {/* Banner Title */}
-        <motion.div
-          initial={{ opacity: 0, y: -15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center md:text-left space-y-2"
-        >
+        <motion.div initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }} className="text-center md:text-left space-y-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-green/10 text-brand-green text-xs font-bold uppercase tracking-wider">
             <Compass size={12} className="animate-spin-slow" /> Kategorileri Keşfet
           </span>
-          <h1 className="font-display font-semibold text-3xl md:text-4xl tracking-tight text-foreground">
-            Paylaşım ve Takas Vitrini
-          </h1>
-          <p className="text-stone-500 dark:text-stone-400 text-xs md:text-sm max-w-xl">
-            Kategori bazlı paylaşım istatistiklerini inceleyin, yaklaşan takas etkinliklerine göz atın ve alet ağınızı büyütün.
-          </p>
+          <h1 className="font-display font-semibold text-3xl md:text-4xl tracking-tight text-foreground">Paylaşım ve Takas Vitrini</h1>
+          <p className="text-stone-500 dark:text-stone-400 text-xs md:text-sm max-w-xl">Kategori bazlı paylaşım istatistiklerini inceleyin, yaklaşan takas etkinliklerine göz atın ve alet ağınızı büyütün.</p>
         </motion.div>
 
-        {/* Bento Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* LEFT: Categories list cards (5 Cols) */}
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="lg:col-span-4 xl:col-span-3 space-y-4"
-          >
-            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-stone-450 px-1">
-              KATEGORİ LİSTESİ
-            </span>
-
+          <motion.div variants={containerVariants} initial="hidden" animate="show" className="lg:col-span-4 xl:col-span-3 space-y-4">
+            <span className="block text-[10px] font-extrabold uppercase tracking-wider text-stone-450 px-1">KATEGORİ LİSTESİ</span>
             {CATEGORIES_DATA.map((cat) => {
               const isSelected = selectedCat === cat.id;
               const Icon = cat.icon;
@@ -277,7 +237,7 @@ export default function ExplorePage() {
                   key={cat.id}
                   variants={itemVariants}
                   onClick={() => setSelectedCat(cat.id)}
-                  className={`w-full flex items-center justify-between p-4.5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${\
+                  className={`w-full flex items-center justify-between p-4.5 rounded-2xl border text-left transition-all duration-300 relative group cursor-pointer ${
                     isSelected
                       ? "border-brand-green bg-brand-green/5 shadow-md shadow-brand-green/5 scale-[1.01]"
                       : "border-border-custom hover:border-brand-green/30 hover:bg-stone-50 dark:hover:bg-stone-900/30"
@@ -288,15 +248,10 @@ export default function ExplorePage() {
                       <Icon size={24} className="text-stone-700 dark:text-stone-300" />
                     </span>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                        {cat.name}
-                      </h3>
-                      <p className="text-[10px] text-stone-400 mt-0.5 truncate max-w-[200px] md:max-w-[260px]">
-                        {cat.desc}
-                      </p>
+                      <h3 className="font-semibold text-sm text-foreground flex items-center gap-1.5">{cat.name}</h3>
+                      <p className="text-[10px] text-stone-400 mt-0.5 truncate max-w-[200px] md:max-w-[260px]">{cat.desc}</p>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-1 shrink-0 text-stone-400 group-hover:text-brand-green transition-colors">
                     <span className="text-[10px] font-bold">{cat.sharesCount} Eşya</span>
                     <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
@@ -306,31 +261,16 @@ export default function ExplorePage() {
             })}
           </motion.div>
 
-          {/* RIGHT: Detailed statistics & Events (7 Cols) */}
           <div className="lg:col-span-8 xl:col-span-9 space-y-6">
-            
-            {/* Category Stats Card */}
-            <motion.div
-              key={`stats-${selectedCat}`}
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: "spring", stiffness: 100, damping: 15 }}
-              className="bg-card-bg border border-border-custom rounded-2xl p-6 space-y-5 noise-overlay shadow-md relative overflow-hidden"
-            >
-              {/* Header */}
+            <motion.div key={`stats-${selectedCat}`} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 100, damping: 15 }} className="bg-card-bg border border-border-custom rounded-2xl p-6 space-y-5 noise-overlay shadow-md relative overflow-hidden">
               <div className="flex items-center justify-between border-b border-stone-100 dark:border-stone-850 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl"><currentCatData.icon size={22} className="text-stone-700 dark:text-stone-300" /></span>
-                  <h2 className="font-display font-semibold text-lg text-foreground">
-                    {currentCatData.name} Raporu
-                  </h2>
+                  <h2 className="font-display font-semibold text-lg text-foreground">{currentCatData.name} Raporu</h2>
                 </div>
-                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest bg-stone-100 dark:bg-stone-900 py-1 px-2.5 rounded-lg border border-border-custom">
-                  Metrikler
-                </span>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest bg-stone-100 dark:bg-stone-900 py-1 px-2.5 rounded-lg border border-border-custom">Metrikler</span>
               </div>
 
-              {/* Stats Bento */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
                 <div className="bg-stone-50 dark:bg-stone-900/50 border border-border-custom rounded-xl p-3.5 space-y-1">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-stone-400">Üye Sayısı</span>
@@ -339,7 +279,6 @@ export default function ExplorePage() {
                     <span>{currentCatData.activeUsers}</span>
                   </div>
                 </div>
-
                 <div className="bg-stone-50 dark:bg-stone-900/50 border border-border-custom rounded-xl p-3.5 space-y-1">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-stone-450">Eşya Sayısı</span>
                   <div className="flex items-center gap-1 text-stone-900 dark:text-stone-100 font-display font-extrabold text-lg">
@@ -347,7 +286,6 @@ export default function ExplorePage() {
                     <span>{currentCatData.sharesCount}</span>
                   </div>
                 </div>
-
                 <div className="bg-stone-50 dark:bg-stone-900/50 border border-border-custom rounded-xl p-3.5 space-y-1">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-stone-400">CO₂ Tasarruf</span>
                   <div className="flex items-center gap-1 text-stone-900 dark:text-stone-100 font-display font-extrabold text-xs md:text-sm font-semibold truncate">
@@ -355,33 +293,20 @@ export default function ExplorePage() {
                     <span>{currentCatData.carbonSavings}</span>
                   </div>
                 </div>
-
                 <div className="bg-stone-50 dark:bg-stone-900/50 border border-border-custom rounded-xl p-3.5 space-y-1">
                   <span className="block text-[9px] font-extrabold uppercase tracking-wider text-stone-400">En Çok Aranan</span>
-                  <span className=\"block text-[11px] font-extrabold text-brand-clay uppercase tracking-wider truncate py-0.5\">
-                    {currentCatData.popularItem}
-                  </span>
+                  <span className="block text-[11px] font-extrabold text-brand-clay uppercase tracking-wider truncate py-0.5">{currentCatData.popularItem}</span>
                 </div>
               </div>
             </motion.div>
 
-            {/* Events Card */}
-            <motion.div
-              key={`events-${selectedCat}`}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-card-bg border border-border-custom rounded-2xl p-6 space-y-4 noise-overlay shadow-md"
-            >
+            <motion.div key={`events-${selectedCat}`} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="bg-card-bg border border-border-custom rounded-2xl p-6 space-y-4 noise-overlay shadow-md">
               <h3 className="font-display font-semibold text-md text-foreground flex items-center justify-between border-b border-stone-100 dark:border-stone-850 pb-2">
                 <span className="flex items-center gap-2">
                   <Calendar className="text-brand-green" size={16} /> Yaklaşan Takas & Paylaşım Etkinlikleri
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green text-[10px] font-bold">
-                  {currentCatData.events.length} Etkinlik
-                </span>
+                <span className="px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green text-[10px] font-bold">{currentCatData.events.length} Etkinlik</span>
               </h3>
-
               <div className="space-y-4">
                 {currentCatData.events.length === 0 ? (
                   <div className="text-center py-12 text-stone-400 space-y-2">
@@ -391,30 +316,19 @@ export default function ExplorePage() {
                   </div>
                 ) : (
                   currentCatData.events.map((evt) => (
-                    <div
-                      key={evt.id}
-                      className="p-4 border border-border-custom rounded-xl space-y-3 bg-stone-50/40 dark:bg-stone-900/20 hover:border-brand-green/20 transition-all relative overflow-hidden"
-                    >
+                    <div key={evt.id} className="p-4 border border-border-custom rounded-xl space-y-3 bg-stone-50/40 dark:bg-stone-900/20 hover:border-brand-green/20 transition-all relative overflow-hidden">
                       <div className="flex items-center justify-between flex-wrap gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green text-[9px] font-extrabold uppercase">
-                          {evt.category}
-                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-brand-green/10 text-brand-green text-[9px] font-extrabold uppercase">{evt.category}</span>
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400">
                           <span>{evt.date}</span>
                           <span>&bull;</span>
                           <span className="text-brand-clay">{evt.time}</span>
                         </div>
                       </div>
-
                       <div className="space-y-1">
-                        <h4 className="font-display font-bold text-sm text-stone-900 dark:text-stone-100">
-                          {evt.title}
-                        </h4>
-                        <p className="text-xs text-stone-600 dark:text-stone-350 leading-relaxed">
-                          {evt.desc}
-                        </p>
+                        <h4 className="font-display font-bold text-sm text-stone-900 dark:text-stone-100">{evt.title}</h4>
+                        <p className="text-xs text-stone-600 dark:text-stone-350 leading-relaxed">{evt.desc}</p>
                       </div>
-
                       <div className="flex items-center justify-between pt-2 border-t border-stone-100 dark:border-stone-850/60 text-[10px] font-bold">
                         <span className="text-stone-450">Konum: <span className="text-stone-750 dark:text-stone-250">{evt.location}</span></span>
                         <span className="text-brand-green">Düzenleyen: {evt.host}</span>
@@ -424,11 +338,8 @@ export default function ExplorePage() {
                 )}
               </div>
             </motion.div>
-
           </div>
-
         </div>
-
       </main>
     </div>
   );
